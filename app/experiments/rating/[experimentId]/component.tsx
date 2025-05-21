@@ -202,7 +202,7 @@ export default function ExperimentRatingComponent({
 
 
      <div className="w-3/4 text-black">
-       <label>단어를 떠올릴 때 드는 느낌이</label>
+       <label className="text-xl font-semibold">단어를 떠올릴 때 드는 느낌이</label>
        <input
          type="range"
          min="-1"
@@ -212,7 +212,7 @@ export default function ExperimentRatingComponent({
          onChange={(e) => setNegativePositive(parseFloat(e.target.value))}
          className="w-full"
        />
-       <div className="flex justify-between text-sm mt-1">
+       <div className="flex justify-between text-base mt-1">
          <span>부정</span>
          <span>중립</span>
          <span>긍정</span>
@@ -221,7 +221,7 @@ export default function ExperimentRatingComponent({
 
 
      <div className="w-3/4 text-black">
-       <label>단어가 자신과 관련된 정도가</label>
+       <label className="text-xl font-semibold">단어가 자신과 관련된 정도가</label>
        <input
          type="range"
          min="0"
@@ -231,7 +231,7 @@ export default function ExperimentRatingComponent({
          onChange={(e) => setRelevance(parseFloat(e.target.value))}
          className="w-full"
        />
-       <div className="flex justify-between text-sm mt-1">
+       <div className="flex justify-between text-base mt-1">
          <span>전혀 관련 없음</span>
          <span>매우 관련 있음</span>
        </div>
@@ -239,7 +239,7 @@ export default function ExperimentRatingComponent({
 
 
      <div className="w-3/4 text-black">
-       <label>단어가 가장 관련이 높은 자신의 시점은</label>
+       <label className="text-xl font-semibold">단어가 가장 관련이 높은 자신의 시점은</label>
        <input
          type="range"
          min="-1"
@@ -250,7 +250,7 @@ export default function ExperimentRatingComponent({
          className="w-full"
          disabled={relevance === 0}
        />
-       <div className="flex justify-between text-sm mt-1">
+       <div className="flex justify-between text-base mt-1">
          <span>과거</span>
          <span>현재</span>
          <span>미래</span>
@@ -259,7 +259,7 @@ export default function ExperimentRatingComponent({
 
 
      <div className="w-3/4 text-black">
-       <label>이 단어는 나에게</label>
+       <label className="text-xl font-semibold">이 단어는 나에게</label>
        <input
          type="range"
          min="-1"
@@ -269,7 +269,7 @@ export default function ExperimentRatingComponent({
          onChange={(e) => setVoluntary(parseFloat(e.target.value))}
          className="w-full"
        />
-       <div className="flex justify-between text-sm mt-1">
+       <div className="flex justify-between text-base mt-1">
          <span>위협적임</span>
          <span>중립적임</span>
          <span>안전함</span>
