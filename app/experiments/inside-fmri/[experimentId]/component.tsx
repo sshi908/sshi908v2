@@ -65,17 +65,17 @@ export default function ExperimentDisplayComponent({
   }, []);
 
   useEffect(() => {
-    if (!currentExperimentId || hasShownInstruction) return;
-
+    if (!isStarted || !currentExperimentId || hasShownInstruction) return;
+  
     setShowInstruction(true);
     const timer = setTimeout(() => {
       setShowInstruction(false);
       setHasShownInstruction(true);
     }, INSTRUCTION_DELAY_MS);
-
+  
     return () => clearTimeout(timer);
-  }, [currentExperimentId, hasShownInstruction]);
-
+  }, [isStarted, currentExperimentId, hasShownInstruction]);
+  
   useEffect(() => {
     if (!isStarted || !currentExperimentId || showInstruction) return;
 
