@@ -130,15 +130,14 @@ export default function ExperimentDisplayComponent({
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-black px-8 text-center">
         <div className="text-white text-2xl space-y-16 leading-relaxed">
-          <p>왼쪽에 흐린 글씨로 이전에 입력한 단어가,</p>
+          <p>왼쪽에 흐린 글씨로 이전에 입력한 단어가 나오고</p>
           <p>
-            오른쪽에는 여러분이 생각 해야 할 단어가 큰 글씨로 보여질 것입니다.
+          오른쪽에는 여러분이 생각해야 할 단어가 큰 글씨로 보일 것입니다.
           </p>
-          <p>이전의 기억이나 경험 때문에 단어들을 떠올렸을 수도 있고,</p>
-          <p>뚜렷한 이유가 없을 수도 있습니다.</p>
-          <p>이 과제도 정답은 없고,</p>
-          <p>그저 ‘아 내가 이런 생각으로 이 단어를 떠올렸나 보다’ 하고,</p>
-          <p>각 단어에 대해 자신만의 의미를 생각해보세요.</p>
+          <p>오른쪽의 큰 단어를 보고</p>
+          <p>자신만의 의미를 떠올려보세요.</p>
+          <p>‘아 내가 이런 생각으로 혹은 아무 의미 없이 이 단어를 떠올렸겠구나’하고</p>
+          <p>그 단어에 대한 자신만의 의미를 생각해보세요.</p>
         </div>
       </div>
     );
