@@ -4,9 +4,13 @@ import axios from "axios";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-const SLIDE_INTERVAL_MS = 15000;
+const SLIDE_INTERVAL_MS = 100;
 const SEED_DELAY_MS = 2000;
 const INSTRUCTION_DELAY_MS = 5000;
+
+// 단어세트2-3 사이 전용 시간
+const RELAX_TIME_BETWEEN_2_3_MS = 1000; // +화면 1초
+const INSTRUCTION_TIME_BETWEEN_2_3_MS = 7000; // 설명문 7초
 
 type Props = {
   experimentIdList: string[];
@@ -26,6 +30,7 @@ export default function ExperimentDisplayComponent({
   const [isRelaxTime, setIsRelaxTime] = useState(false);
   const [showInstruction, setShowInstruction] = useState(false);
   const [hasShownInstruction, setHasShownInstruction] = useState(false);
+  const [showSecondInstruction, setShowSecondInstruction] = useState(false);
 
   const currentExperimentId = experimentIdList[experimentIndex];
 
@@ -66,18 +71,24 @@ export default function ExperimentDisplayComponent({
 
   useEffect(() => {
     if (!isStarted || !currentExperimentId || hasShownInstruction) return;
-  
+
     setShowInstruction(true);
     const timer = setTimeout(() => {
       setShowInstruction(false);
       setHasShownInstruction(true);
     }, INSTRUCTION_DELAY_MS);
-  
+
     return () => clearTimeout(timer);
   }, [isStarted, currentExperimentId, hasShownInstruction]);
-  
+
   useEffect(() => {
-    if (!isStarted || !currentExperimentId || showInstruction) return;
+    if (
+      !isStarted ||
+      !currentExperimentId ||
+      showInstruction ||
+      showSecondInstruction
+    )
+      return;
 
     const wordList = words[currentExperimentId] || [];
     const isLastWord = wordIndex >= wordList.length - 2;
@@ -86,17 +97,36 @@ export default function ExperimentDisplayComponent({
       if (!isLastWord) {
         setWordIndex((prev) => prev + 1);
       } else {
-        setIsRelaxTime(true);
-        setTimeout(() => {
-          setExperimentIdIndex((prev) => {
-            if (experimentIndex < experimentIdList.length) {
-              return prev + 1;
-            }
-            return prev;
-          });
-          setIsRelaxTime(false);
-          setWordIndex(0);
-        }, SEED_DELAY_MS);
+        // 단어세트2가 끝난 경우 특별한 플로우 실행
+        if (experimentIndex === 1) {
+          setIsRelaxTime(true);
+          setTimeout(() => {
+            setIsRelaxTime(false);
+            setShowSecondInstruction(true);
+            setTimeout(() => {
+              setShowSecondInstruction(false);
+              setIsRelaxTime(true);
+              setTimeout(() => {
+                setIsRelaxTime(false);
+                setExperimentIdIndex((prev) => prev + 1);
+                setWordIndex(0);
+              }, RELAX_TIME_BETWEEN_2_3_MS);
+            }, INSTRUCTION_TIME_BETWEEN_2_3_MS);
+          }, RELAX_TIME_BETWEEN_2_3_MS);
+        } else {
+          // 다른 단어세트들은 기존 로직 유지
+          setIsRelaxTime(true);
+          setTimeout(() => {
+            setExperimentIdIndex((prev) => {
+              if (experimentIndex < experimentIdList.length) {
+                return prev + 1;
+              }
+              return prev;
+            });
+            setIsRelaxTime(false);
+            setWordIndex(0);
+          }, SEED_DELAY_MS);
+        }
       }
     }, SLIDE_INTERVAL_MS);
 
@@ -107,6 +137,7 @@ export default function ExperimentDisplayComponent({
     experimentIndex,
     isStarted,
     showInstruction,
+    showSecondInstruction,
     wordIndex,
     words,
   ]);
@@ -126,22 +157,23 @@ export default function ExperimentDisplayComponent({
     );
   }
 
-  if (showInstruction) {
+  if (showInstruction || showSecondInstruction) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-black px-8 text-center">
         <div className="text-white text-2xl space-y-16 leading-relaxed">
           <p>왼쪽에 흐린 글씨로 이전에 입력한 단어가 나오고</p>
-          <p>
-          오른쪽에는 여러분이 생각해야 할 단어가 큰 글씨로 보일 것입니다.
-          </p>
+          <p>오른쪽에는 여러분이 생각해야 할 단어가 큰 글씨로 보일 것입니다.</p>
           <p>오른쪽의 큰 단어를 보고</p>
           <p>자신만의 의미를 떠올려보세요.</p>
-          <p>‘아 내가 이런 생각으로 혹은 아무 의미 없이 이 단어를 떠올렸겠구나’하고</p>
+          <p>
+            ‘아 내가 이런 생각으로 혹은 아무 의미 없이 이 단어를
+            떠올렸겠구나’하고
+          </p>
           <p>그 단어에 대한 자신만의 의미를 생각해보세요.</p>
         </div>
       </div>
     );
-  } 
+  }
 
   // 슬라이드 화면
   return (
@@ -163,10 +195,10 @@ export default function ExperimentDisplayComponent({
         ) : (
           <>
             <div className="absolute left-1/5 transform -translate-x-1/2 text-6xl text-gray-500">
-            {words[currentExperimentId]?.[wordIndex] ?? ""}
+              {words[currentExperimentId]?.[wordIndex] ?? ""}
             </div>
             <div className="absolute right-1/5 transform translate-x-1/2 text-8xl font-bold text-white">
-            {words[currentExperimentId]?.[wordIndex + 1] ?? ""}
+              {words[currentExperimentId]?.[wordIndex + 1] ?? ""}
             </div>
           </>
         )}
