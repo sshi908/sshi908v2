@@ -108,21 +108,46 @@ export default function ExperimentsPage() {
                       `/experiments/inside-fmri/${idList.toString()}`
                     );
                   }}
-                  className="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-700"
+                  className="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-700 mr-2"
                 >
                   단어 재생
+                </button>
+                <button
+                  onClick={() => {
+                    const experimentIdList = getExperimentIdList({
+                      username: experiment.username,
+                      experimentId: experiment.experimentId,
+                    });
+
+                    const idList = new URLSearchParams(
+                      experimentIdList.join(",")
+                    );
+
+                    router.push(`/experiments/rating/${idList.toString()}`);
+                  }}
+                  className="px-3 py-1 bg-purple-500 text-white rounded-lg hover:bg-purple-700"
+                >
+                  단어 평가
                 </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <button
-        onClick={() => router.push("/users")}
-        className="mt-6 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-800"
-      >
-        사용자 선택으로 돌아가기
-      </button>
+      <div className="mt-6 flex gap-4">
+        <button
+          onClick={() => router.push("/users")}
+          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-800"
+        >
+          사용자 선택으로 돌아가기
+        </button>
+        <button
+          onClick={() => router.push("/experiments/rating")}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-800"
+        >
+          평가 페이지로 이동
+        </button>
+      </div>
     </div>
   );
 }
