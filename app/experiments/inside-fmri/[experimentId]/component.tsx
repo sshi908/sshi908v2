@@ -18,21 +18,93 @@ type Props = {
 
 type WordMap = { [experimentId: string]: string[] };
 
+type ScreenState =
+  | "waiting"
+  | "instruction"
+  | "secondInstruction"
+  | "relax"
+  | "words"
+  | "ended";
+
+type ExperimentState = {
+  isStarted: boolean;
+  experimentIndex: number;
+  wordIndex: number;
+  screenState: ScreenState;
+  hasShownInstruction: boolean;
+};
+
 export default function ExperimentDisplayComponent({
   experimentIdList,
 }: Props) {
   const { push } = useRouter();
 
   const [words, setWords] = useState<WordMap>({});
-  const [wordIndex, setWordIndex] = useState(0);
-  const [isStarted, setIsStarted] = useState(false);
-  const [experimentIndex, setExperimentIdIndex] = useState(0);
-  const [isRelaxTime, setIsRelaxTime] = useState(false);
-  const [showInstruction, setShowInstruction] = useState(false);
-  const [hasShownInstruction, setHasShownInstruction] = useState(false);
-  const [showSecondInstruction, setShowSecondInstruction] = useState(false);
+  const [state, setState] = useState<ExperimentState>({
+    isStarted: false,
+    experimentIndex: 0,
+    wordIndex: 0,
+    screenState: "waiting",
+    hasShownInstruction: false,
+  });
 
-  const currentExperimentId = experimentIdList[experimentIndex];
+  // 유틸리티 함수: 지연 실행
+  const delay = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+
+  const currentExperimentId = experimentIdList[state.experimentIndex];
+
+  // 상태 업데이트 헬퍼
+  const updateState = useCallback(
+    (
+      updates:
+        | Partial<ExperimentState>
+        | ((prev: ExperimentState) => Partial<ExperimentState>)
+    ) => {
+      setState((prev) => ({
+        ...prev,
+        ...(typeof updates === "function" ? updates(prev) : updates),
+      }));
+    },
+    []
+  );
+
+  // 단어세트2-3 사이 특별한 플로우 처리
+  const handleSet2To3Transition = useCallback(async () => {
+    // 1단계: 첫 번째 +화면 (1초)
+    updateState({ screenState: "relax" });
+    await delay(RELAX_TIME_BETWEEN_2_3_MS);
+
+    // 2단계: 설명문 (7초)
+    updateState({ screenState: "secondInstruction" });
+    await delay(INSTRUCTION_TIME_BETWEEN_2_3_MS);
+
+    // 3단계: 두 번째 +화면 (1초)
+    updateState({ screenState: "relax" });
+    await delay(RELAX_TIME_BETWEEN_2_3_MS);
+
+    // 4단계: 세트3 시작
+    updateState({
+      screenState: "words",
+      experimentIndex: state.experimentIndex + 1,
+      wordIndex: 0,
+    });
+  }, [updateState, state.experimentIndex]);
+
+  // 일반적인 실험 전환 처리
+  const handleNormalTransition = useCallback(async () => {
+    updateState({ screenState: "relax" });
+    await delay(SEED_DELAY_MS);
+
+    updateState((prev) => ({
+      screenState: "words",
+      experimentIndex:
+        prev.experimentIndex < experimentIdList.length
+          ? prev.experimentIndex + 1
+          : prev.experimentIndex,
+      wordIndex: 0,
+    }));
+  }, [updateState, experimentIdList.length]);
 
   // 모든 실험 단어 fetch
   const fetchWords = useCallback(async () => {
@@ -52,11 +124,14 @@ export default function ExperimentDisplayComponent({
   }, [experimentIdList]);
 
   // 키 입력 이벤트
-  const handleKeyPress = (e: KeyboardEvent) => {
-    if (e.key.toLowerCase() === "s" || e.key === "ㄴ") {
-      setIsStarted(true);
-    }
-  };
+  const handleKeyPress = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === "s" || e.key === "ㄴ") {
+        updateState({ isStarted: true });
+      }
+    },
+    [updateState]
+  );
 
   // 단어 fetch (초기)
   useEffect(() => {
@@ -67,89 +142,75 @@ export default function ExperimentDisplayComponent({
   useEffect(() => {
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, []);
+  }, [handleKeyPress]);
 
+  // 첫 번째 설명문 표시
   useEffect(() => {
-    if (!isStarted || !currentExperimentId || hasShownInstruction) return;
+    if (!state.isStarted || !currentExperimentId || state.hasShownInstruction)
+      return;
 
-    setShowInstruction(true);
+    updateState({ screenState: "instruction" });
     const timer = setTimeout(() => {
-      setShowInstruction(false);
-      setHasShownInstruction(true);
+      updateState({ screenState: "words", hasShownInstruction: true });
     }, INSTRUCTION_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [isStarted, currentExperimentId, hasShownInstruction]);
+  }, [
+    state.isStarted,
+    currentExperimentId,
+    state.hasShownInstruction,
+    updateState,
+  ]);
 
+  // 단어 진행 로직
   useEffect(() => {
     if (
-      !isStarted ||
+      !state.isStarted ||
       !currentExperimentId ||
-      showInstruction ||
-      showSecondInstruction
-    )
+      state.screenState !== "words"
+    ) {
       return;
+    }
 
     const wordList = words[currentExperimentId] || [];
-    const isLastWord = wordIndex >= wordList.length - 2;
+    const isLastWord = state.wordIndex >= wordList.length - 2;
 
     const timer = setTimeout(() => {
       if (!isLastWord) {
-        setWordIndex((prev) => prev + 1);
+        updateState((prev) => ({ wordIndex: prev.wordIndex + 1 }));
       } else {
         // 단어세트2가 끝난 경우 특별한 플로우 실행
-        if (experimentIndex === 1) {
-          setIsRelaxTime(true);
-          setTimeout(() => {
-            setIsRelaxTime(false);
-            setShowSecondInstruction(true);
-            setTimeout(() => {
-              setShowSecondInstruction(false);
-              setIsRelaxTime(true);
-              setTimeout(() => {
-                setIsRelaxTime(false);
-                setExperimentIdIndex((prev) => prev + 1);
-                setWordIndex(0);
-              }, RELAX_TIME_BETWEEN_2_3_MS);
-            }, INSTRUCTION_TIME_BETWEEN_2_3_MS);
-          }, RELAX_TIME_BETWEEN_2_3_MS);
+        if (state.experimentIndex === 1) {
+          handleSet2To3Transition();
         } else {
           // 다른 단어세트들은 기존 로직 유지
-          setIsRelaxTime(true);
-          setTimeout(() => {
-            setExperimentIdIndex((prev) => {
-              if (experimentIndex < experimentIdList.length) {
-                return prev + 1;
-              }
-              return prev;
-            });
-            setIsRelaxTime(false);
-            setWordIndex(0);
-          }, SEED_DELAY_MS);
+          handleNormalTransition();
         }
       }
     }, SLIDE_INTERVAL_MS);
 
     return () => clearTimeout(timer);
   }, [
+    state.isStarted,
     currentExperimentId,
-    experimentIdList.length,
-    experimentIndex,
-    isStarted,
-    showInstruction,
-    showSecondInstruction,
-    wordIndex,
+    state.screenState,
+    state.experimentIndex,
+    state.wordIndex,
     words,
+    handleSet2To3Transition,
+    handleNormalTransition,
+    updateState,
   ]);
 
+  // 실험 종료 여부 확인
   const isEnded =
-    experimentIndex >= experimentIdList.length ||
-    (experimentIndex === experimentIdList.length - 1 &&
+    state.experimentIndex >= experimentIdList.length ||
+    (state.experimentIndex === experimentIdList.length - 1 &&
       words[currentExperimentId] &&
-      wordIndex >= words[currentExperimentId].length);
+      state.wordIndex >= words[currentExperimentId].length);
 
-  // 시작 전 "+" 화면
-  if (!isStarted || isRelaxTime) {
+  // 화면 렌더링
+  if (!state.isStarted || state.screenState === "relax") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black">
         <div className="text-white text-6xl">+</div>
@@ -157,7 +218,10 @@ export default function ExperimentDisplayComponent({
     );
   }
 
-  if (showInstruction || showSecondInstruction) {
+  if (
+    state.screenState === "instruction" ||
+    state.screenState === "secondInstruction"
+  ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-black px-8 text-center">
         <div className="text-white text-2xl space-y-16 leading-relaxed">
@@ -166,8 +230,8 @@ export default function ExperimentDisplayComponent({
           <p>오른쪽의 큰 단어를 보고</p>
           <p>자신만의 의미를 떠올려보세요.</p>
           <p>
-            ‘아 내가 이런 생각으로 혹은 아무 의미 없이 이 단어를
-            떠올렸겠구나’하고
+            '아 내가 이런 생각으로 혹은 아무 의미 없이 이 단어를
+            떠올렸겠구나'하고
           </p>
           <p>그 단어에 대한 자신만의 의미를 생각해보세요.</p>
         </div>
@@ -175,33 +239,33 @@ export default function ExperimentDisplayComponent({
     );
   }
 
-  // 슬라이드 화면
+  if (isEnded) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-black">
+        <div
+          className="text-6xl text-gray-500 text-center leading-relaxed cursor-pointer"
+          onClick={() => {
+            const idList = new URLSearchParams(experimentIdList.join(","));
+            push(`/experiments/rating/${idList.toString()}`);
+          }}
+        >
+          <div>모든 단어를 연상해주셨습니다.</div>
+          <div>감사합니다.</div>
+        </div>
+      </div>
+    );
+  }
+
+  // 단어 슬라이드 렌더링
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-black">
       <div className="relative w-full max-w-3xl h-100 flex items-center justify-center">
-        {isEnded ? (
-          <>
-            <div
-              className="text-6xl text-gray-500 text-center leading-relaxed"
-              onClick={() => {
-                const idList = new URLSearchParams(experimentIdList.join(","));
-                push(`/experiments/rating/${idList.toString()}`);
-              }}
-            >
-              <div>모든 단어를 연상해주셨습니다.</div>
-              <div>감사합니다.</div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="absolute left-1/5 transform -translate-x-1/2 text-6xl text-gray-500">
-              {words[currentExperimentId]?.[wordIndex] ?? ""}
-            </div>
-            <div className="absolute right-1/5 transform translate-x-1/2 text-8xl font-bold text-white">
-              {words[currentExperimentId]?.[wordIndex + 1] ?? ""}
-            </div>
-          </>
-        )}
+        <div className="absolute left-1/5 transform -translate-x-1/2 text-6xl text-gray-500">
+          {words[currentExperimentId]?.[state.wordIndex] ?? ""}
+        </div>
+        <div className="absolute right-1/5 transform translate-x-1/2 text-8xl font-bold text-white">
+          {words[currentExperimentId]?.[state.wordIndex + 1] ?? ""}
+        </div>
       </div>
     </div>
   );
